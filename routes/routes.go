@@ -14,7 +14,7 @@ const (
 )
 
 func HandleHome(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles("home.html")
+	tmpl, err := template.ParseFiles("html/home.html")
 	if err != nil {
 		handleError(w, r, err, http.StatusInternalServerError)
 		return
@@ -46,20 +46,38 @@ func HandleConnect(connect func(string, string, string, string) error) http.Hand
 			handleError(w, r, err, http.StatusBadRequest)
 			return
 		}
-
 		err = connect(form["driver"], form["username"], form["password"], form["dbname"])
 		if err != nil {
 			handleError(w, r, err, http.StatusBadRequest)
 			return
 		}
+
 		http.Redirect(w, r, DBPath, http.StatusMovedPermanently)
 	})
 }
 
 func HandleDatabase(w http.ResponseWriter, r *http.Request) {
+	// we get session
+	_uuid := ""
+	session := sessionManager.get(_uuid)
+	if session == nil || session.expired() {
+		http.Redirect(w, r, HomePath, http.StatusPermanentRedirect)
+		return
+	}
+	tmpl, err := template.ParseFiles("html/home.html")
+	if err != nil {
+		handleError(w, r, err, http.StatusInternalServerError)
+		return
+	}
+	page := struct{}{}
+	err = tmpl.Execute(w, page)
+	if err != nil {
+		handleError(w, r, err, http.StatusInternalServerError)
+		return
+	}
 }
 func handleError(w http.ResponseWriter, r *http.Request, _err error, status int) {
-	tmpl, err := template.ParseFiles("error.html")
+	tmpl, err := template.ParseFiles("html/error.html")
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
