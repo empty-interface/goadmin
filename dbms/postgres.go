@@ -1,23 +1,23 @@
 package dbms
 
 import (
-	"database/sql"
+	"fmt"
+
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
-type Postgres struct {
-	DB *sql.DB
+type postgresDriver struct {
+	config Config
 }
 
-func NewPostgres(Config) Driver {
-	return &Postgres{}
+func newPostgresDriver(config Config) driver {
+	return postgresDriver{config}
 }
 
-func (p *Postgres) Connect(config Config) error {
-	return nil
+func (p postgresDriver) open(dsn string) gorm.Dialector {
+	return postgres.Open(dsn)
 }
-func (p *Postgres) Query(text string, args ...interface{}) (*sql.Rows, error) {
-	return p.DB.Query(text, args...)
-}
-func (p *Postgres) Close() {
-
+func (p postgresDriver) dsn() string {
+	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", p.config.Host, p.config.Port, p.config.Username, p.config.Password, p.config.DBName)
 }

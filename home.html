@@ -9,9 +9,9 @@
 <body>
     <h1>{{.Title}}</h1>
     
-    <form action="/connect" method="POST">
+    <form action={{.Action}} method="POST">
         <select name="driver" >
-            {{range $key, $value := .Data}}
+            {{range $key, $value := .Select}}
                 <option value={{$key}}>{{$value}}</option>
             {{end}}
         </select>

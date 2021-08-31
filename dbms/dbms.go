@@ -4,55 +4,57 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"gorm.io/gorm"
 )
 
-var supportedDrivers = map[string]func(Config) Driver{
-	"postgres": NewPostgres,
+type GormConnection struct {
+	*gorm.DB
+	isOpen bool
+}
+type driver interface {
+	open(dsn string) gorm.Dialector
+	dsn() string
 }
 
-type Driver interface {
-	Connect(config Config) error
-	Query(text string, args ...interface{}) (*sql.Rows, error)
-	Close()
+func newGormConnection(driver driver, opts ...gorm.Option) (*GormConnection, error) {
+	db, err := gorm.Open(driver.open(driver.dsn()), opts...)
+	if err != nil {
+		return nil, err
+	}
+	// a, err := gorm.Open()
+	// a.Delete()
+	return &GormConnection{
+		DB:     db,
+		isOpen: true,
+	}, nil
 }
-type DBMS interface {
-	Connect(config Config) error
-	Close()
+
+func New(driver string, config Config) (*GormConnection, error) {
+	_func, ok := supportedDrivers[driver]
+	if !ok {
+		return nil, driverNotSupported
+	}
+	// opt := {}
+	return newGormConnection(_func(config))
 }
-type dbms struct {
-	driver Driver
+
+type driverInitializer = func(Config) driver
+
+var supportedDrivers = map[string]driverInitializer{
+	"postgres": newPostgresDriver,
 }
 
 var (
-	DriverNotSupported = errors.New("Driver Not Supportd")
+	driverNotSupported = errors.New("Driver Not Supportd")
 )
 
-func New(driver string, config Config) (DBMS, error) {
-
-	_func, ok := supportedDrivers[driver]
-	if !ok {
-		return nil, DriverNotSupported
-	}
-	return dbms{
-		driver: _func(config),
-	}, nil
-}
-func (sys *dbms) Query(text string, args ...interface{}) QueryResult {
-	start := time.Now()
-	sys.driver.Query(text, args...)
-	qr := QueryResult{}
-	qr.processTime = time.Now().Sub(start)
-	return qr
-}
-func (sys dbms) Connect(config Config) error {
-	return sys.driver.Connect(config)
-}
-func (sys dbms) Close() {
-	sys.driver.Close()
+func (conn GormConnection) Close() {
+	conn.isOpen = false
 }
 
 type Config struct {
-	username, host, port, password string
+	Host, Username, DBName, Port, Password string
 }
 type QueryResult struct {
 	rows        *sql.Rows
