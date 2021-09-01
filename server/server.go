@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -15,8 +16,9 @@ type ServerConfig struct {
 	Host string
 }
 type Server struct {
-	config ServerConfig
-	router *mux.Router
+	config     ServerConfig
+	router     *mux.Router
+	httpServer *http.Server
 }
 
 func NewServer(config ServerConfig) (*Server, error) {
@@ -26,7 +28,7 @@ func NewServer(config ServerConfig) (*Server, error) {
 }
 func (srv *Server) setupRoutes() {
 	router := mux.NewRouter()
-	router.HandleFunc(routes.HomePath, routes.HandleSession())
+	router.HandleFunc(routes.HomePath, routes.HandleSession(srv.Connect))
 	router.HandleFunc(routes.ConnectPath, routes.HandleConnect(srv.Connect))
 	router.HandleFunc(routes.DisconnectPath, routes.HandleDisconnect)
 	srv.router = router
@@ -46,9 +48,36 @@ func (srv *Server) Connect(sess *routes.Session) error {
 func (srv *Server) getAddr() string {
 	return fmt.Sprintf("%s:%s", srv.config.Host, srv.config.Port)
 }
-func (srv *Server) ListenAndServe() error {
+func (srv *Server) Close(ctx context.Context) {
+	fmt.Println("\nClosing")
+	done := make(chan bool, 1)
+	go func() {
+		srv.httpServer.Shutdown(ctx)
+		manager := routes.GetGlobalSessionManager()
+		if manager != nil {
+			manager.Close()
+		}
+		done <- true
+	}()
+	select {
+	case <-ctx.Done():
+		fmt.Println("Timeout ,", ctx.Err().Error())
+	case <-done:
+		fmt.Println("\nDone closing server")
+	}
+}
+func (srv *Server) ListenAndServe() {
 	srv.setupRoutes()
 	addr := srv.getAddr()
+	srv.httpServer = &http.Server{
+		Addr: addr, Handler: srv.router,
+	}
 	fmt.Printf("Server running on: %s\n", addr)
-	return http.ListenAndServe(addr, srv.router)
+	go func() {
+		if err := srv.httpServer.ListenAndServe(); err == http.ErrServerClosed {
+			fmt.Println("Closed gracefully")
+		} else {
+			fmt.Println("Server closed err:", err.Error())
+		}
+	}()
 }

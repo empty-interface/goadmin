@@ -1,6 +1,11 @@
 package routes
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/fs"
+	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,12 +17,45 @@ var _sessionManager *sessionManager
 const sessionTimeToLive time.Duration = time.Minute * 10
 
 type Session struct {
-	uuid                               string
-	Driver, Username, Password, DBname string
-	createdAt                          time.Time
-	Conn                               *dbms.GormConnection
+	uuid      string
+	Driver    string
+	Username  string
+	Password  string
+	DBname    string
+	createdAt time.Time
+	Conn      *dbms.GormConnection
+}
+type infileSession struct {
+	Uuid      string `json:"uuid"`
+	Driver    string `json:"driver"`
+	Username  string `json:"username"`
+	Password  string `json:"password"`
+	DBname    string `json:"dbname"`
+	CreatedAt int64  `json:"createdAt"`
 }
 
+func sessionToInfileSession(sess *Session) infileSession {
+	return infileSession{
+		Uuid:      sess.uuid,
+		Driver:    sess.Driver,
+		Username:  sess.Username,
+		Password:  sess.Password,
+		DBname:    sess.DBname,
+		CreatedAt: sess.createdAt.UnixMilli(),
+	}
+}
+
+func infileSessiontoSession(sess *infileSession) *Session {
+	return &Session{
+		uuid:      sess.Uuid,
+		Driver:    sess.Driver,
+		Username:  sess.Username,
+		Password:  sess.Password,
+		DBname:    sess.DBname,
+		createdAt: time.UnixMilli(sess.CreatedAt),
+		Conn:      nil,
+	}
+}
 func (sess *Session) expired() bool {
 	return time.Now().Sub(sess.createdAt) > sessionTimeToLive
 }
@@ -46,8 +84,9 @@ func NewSession(driver, username, password, dbname string) (*Session, error) {
 }
 
 type sessionManager struct {
-	Name          string
-	aliveSessions map[string]*Session
+	outputFilename string
+	Name           string
+	aliveSessions  map[string]*Session
 }
 
 func NewSessionManager(name string) {
@@ -55,14 +94,16 @@ func NewSessionManager(name string) {
 		name = "goadminv1"
 	}
 	_sessionManager = &sessionManager{
-		Name:          name,
-		aliveSessions: make(map[string]*Session),
+		Name:           name,
+		aliveSessions:  make(map[string]*Session),
+		outputFilename: "./sessions.json",
 	}
 }
 func GetGlobalSessionManager() *sessionManager {
 	if _sessionManager == nil {
 		NewSessionManager("")
 	}
+	_sessionManager.loadSessionsFromFile()
 	return _sessionManager
 }
 func (manager *sessionManager) get(id string) *Session {
@@ -71,6 +112,42 @@ func (manager *sessionManager) get(id string) *Session {
 		return nil
 	}
 	return sess
+}
+func (manager *sessionManager) Close() {
+	manager.saveSessionsToFile()
+}
+func (manager *sessionManager) loadSessionsFromFile() {
+	b, err := ioutil.ReadFile(manager.outputFilename)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Could not read file: %s\n", err.Error())
+		return
+	}
+	sessions := make(map[string]infileSession)
+	err = json.Unmarshal(b, &sessions)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Could not unmarshal sessions: %s\n", err.Error())
+		return
+	}
+	for _, sess := range sessions {
+		manager.aliveSessions[sess.Uuid] = infileSessiontoSession(&sess)
+	}
+}
+
+func (manager *sessionManager) saveSessionsToFile() {
+	sessions := make(map[string]infileSession)
+	for _, sess := range manager.aliveSessions {
+		sessions[sess.uuid] = sessionToInfileSession(sess)
+	}
+	b, err := json.Marshal(sessions)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Could not marshal sessions: %s", err.Error())
+		return
+	}
+	err = ioutil.WriteFile(manager.outputFilename, b, fs.ModePerm)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Could not write to file: %s", err.Error())
+		return
+	}
 }
 func (manager *sessionManager) set(sess *Session) {
 	//we should maybe return an error if session is already there

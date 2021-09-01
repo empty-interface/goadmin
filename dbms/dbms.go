@@ -21,7 +21,7 @@ type Table struct {
 }
 
 func (conn *GormConnection) GetTables() {
-	query := `select * from information_schema.tables where `
+	query := `select * from information_schema.tables where table_schema = public`
 	// tables := make([]Table, 0)
 	rows, err := conn.Raw(query).Rows()
 	if err != nil {

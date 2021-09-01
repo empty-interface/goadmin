@@ -97,7 +97,7 @@ func HandleDisconnect(w http.ResponseWriter, r *http.Request) {
 	handleExpiredSession(w, r, sess)
 	http.Redirect(w, r, HomePath, http.StatusPermanentRedirect)
 }
-func HandleSession() http.HandlerFunc {
+func HandleSession(connect func(*Session) error) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sessionManager := *GetGlobalSessionManager()
 		cookie, err := r.Cookie(sessionManager.Name)
@@ -113,6 +113,14 @@ func HandleSession() http.HandlerFunc {
 			handleExpiredSession(w, r, sess)
 			HandleHome(w, r)
 			return
+		}
+		if sess.Conn == nil {
+			err := connect(sess)
+			if err != nil {
+				handleExpiredSession(w, r, sess)
+				HandleHome(w, r)
+				return
+			}
 		}
 		fmt.Println("Session is alive", sess.uuid)
 		HandleDatabase(w, r, sess)
