@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/kalitheniks/goadmin/server"
+	"github.com/empty-interface/goadmin/server"
 )
 
 func main() {

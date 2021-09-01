@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/empty-interface/goadmin/dbms"
+	"github.com/empty-interface/goadmin/routes"
 	"github.com/gorilla/mux"
-	"github.com/kalitheniks/goadmin/dbms"
-	"github.com/kalitheniks/goadmin/routes"
 )
 
 type ServerConfig struct {
@@ -28,8 +28,8 @@ func NewServer(config ServerConfig) (*Server, error) {
 }
 func (srv *Server) setupRoutes() {
 	router := mux.NewRouter()
-	router.HandleFunc(routes.HomePath, routes.HandleSession(srv.Connect))
-	router.HandleFunc(routes.ConnectPath, routes.HandleConnect(srv.Connect))
+	router.Handle(routes.HomePath, routes.HandleSession(srv.Connect))
+	router.Handle(routes.ConnectPath, routes.HandleConnect(srv.Connect))
 	router.HandleFunc(routes.DisconnectPath, routes.HandleDisconnect)
 	srv.router = router
 }

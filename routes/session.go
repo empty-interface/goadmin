@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/empty-interface/goadmin/dbms"
 	"github.com/google/uuid"
-	"github.com/kalitheniks/goadmin/dbms"
 )
 
 var _sessionManager *sessionManager
@@ -102,8 +102,8 @@ func NewSessionManager(name string) {
 func GetGlobalSessionManager() *sessionManager {
 	if _sessionManager == nil {
 		NewSessionManager("")
+		_sessionManager.loadSessionsFromFile()
 	}
-	_sessionManager.loadSessionsFromFile()
 	return _sessionManager
 }
 func (manager *sessionManager) get(id string) *Session {
@@ -129,8 +129,12 @@ func (manager *sessionManager) loadSessionsFromFile() {
 		return
 	}
 	for _, sess := range sessions {
-		manager.aliveSessions[sess.Uuid] = infileSessiontoSession(&sess)
+		_s := infileSessiontoSession(&sess)
+		if _s.alive() {
+			manager.aliveSessions[sess.Uuid] = _s
+		}
 	}
+	fmt.Println("Loaded sessions")
 }
 
 func (manager *sessionManager) saveSessionsToFile() {
@@ -148,6 +152,7 @@ func (manager *sessionManager) saveSessionsToFile() {
 		fmt.Fprintf(os.Stderr, "Could not write to file: %s", err.Error())
 		return
 	}
+	fmt.Println("Sessions saved")
 }
 func (manager *sessionManager) set(sess *Session) {
 	//we should maybe return an error if session is already there

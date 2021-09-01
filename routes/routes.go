@@ -13,11 +13,35 @@ const (
 	DisconnectPath = "/disconnect"
 )
 
-func HandleHome(w http.ResponseWriter, r *http.Request) {
+type HandleError func(w http.ResponseWriter, r *http.Request) (int, error)
+
+func (handler HandleError) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if code, originalErr := handler(w, r); originalErr != nil {
+		tmpl, err := template.ParseFiles("html/error.html")
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
+		page := struct{ Title, ErrorMsg, HomePath string }{
+			Title:    "GoAdminer v1",
+			ErrorMsg: originalErr.Error(),
+			HomePath: HomePath,
+		}
+		err = tmpl.Execute(w, page)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
+		w.WriteHeader(code)
+	}
+}
+
+func HandleHome(w http.ResponseWriter, r *http.Request) (int, error) {
 	tmpl, err := template.ParseFiles("html/home.html")
 	if err != nil {
-		handleError(w, r, err, http.StatusInternalServerError)
-		return
+		return http.StatusInternalServerError, err
 	}
 	page := struct {
 		Title  string
@@ -34,30 +58,28 @@ func HandleHome(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-type", "text/html")
 	err = tmpl.Execute(w, page)
 	if err != nil {
-		handleError(w, r, err, http.StatusInternalServerError)
-		return
+		return http.StatusInternalServerError, err
 	}
+	return -1, nil
 }
-func HandleConnect(connect func(*Session) error) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func HandleConnect(connect func(*Session) error) HandleError {
+	return HandleError(func(w http.ResponseWriter, r *http.Request) (int, error) {
 		r.ParseForm()
 		form, err := parseConnectForm(r.PostForm)
 		if err != nil {
-			handleError(w, r, err, http.StatusBadRequest)
-			return
+			return http.StatusBadRequest, err
 		}
 		sess, err := NewSession(form["driver"], form["username"], form["password"], form["dbname"])
 		if err != nil {
-			handleError(w, r, err, http.StatusInternalServerError)
-			return
+			return http.StatusInternalServerError, err
 		}
 		err = connect(sess)
 		if err != nil {
-			handleError(w, r, err, http.StatusBadRequest)
-			return
+			return http.StatusBadRequest, err
 		}
 		addOrRefreshLoginSession(w, r, sess)
 		http.Redirect(w, r, HomePath, http.StatusPermanentRedirect)
+		return -1, nil
 	})
 }
 func addOrRefreshLoginSession(w http.ResponseWriter, r *http.Request, sess *Session) {
@@ -79,13 +101,13 @@ func handleExpiredSession(w http.ResponseWriter, r *http.Request, sess *Session)
 	sessionManager := *GetGlobalSessionManager()
 	if sess != nil {
 		sessionManager.delete(sess.uuid)
+		fmt.Println("Deleted session")
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name:   sessionManager.Name,
 		MaxAge: -1,
 		// Value:  "",
 	})
-	fmt.Println("Deleted session")
 }
 func HandleDisconnect(w http.ResponseWriter, r *http.Request) {
 	sessionManager := *GetGlobalSessionManager()
@@ -126,12 +148,11 @@ func HandleSession(connect func(*Session) error) http.HandlerFunc {
 		HandleDatabase(w, r, sess)
 	})
 }
-func HandleDatabase(w http.ResponseWriter, r *http.Request, currentSession *Session) {
+func HandleDatabase(w http.ResponseWriter, r *http.Request, currentSession *Session) (int, error) {
 	// we get session
 	tmpl, err := template.ParseFiles("html/database.html")
 	if err != nil {
-		handleError(w, r, err, http.StatusInternalServerError)
-		return
+		return http.StatusInternalServerError, err
 	}
 	currentSession.Conn.GetTables()
 	page := struct {
@@ -145,28 +166,9 @@ func HandleDatabase(w http.ResponseWriter, r *http.Request, currentSession *Sess
 	}
 	err = tmpl.Execute(w, page)
 	if err != nil {
-		handleError(w, r, err, http.StatusInternalServerError)
-		return
+		return http.StatusInternalServerError, err
 	}
-}
-func handleError(w http.ResponseWriter, r *http.Request, _err error, status int) {
-	tmpl, err := template.ParseFiles("html/error.html")
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
-		return
-	}
-	page := struct{ Title, ErrorMsg, HomePath string }{
-		Title:    "GoAdminer v1",
-		ErrorMsg: _err.Error(),
-		HomePath: HomePath,
-	}
-	err = tmpl.Execute(w, page)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
-		return
-	}
+	return -1, nil
 }
 
 func parseConnectForm(map_ url.Values) (map[string]string, error) {

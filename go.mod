@@ -1,4 +1,4 @@
-module github.com/kalitheniks/goadmin
+module github.com/empty-interface/goadmin
 
 go 1.17
 

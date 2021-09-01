@@ -3,7 +3,6 @@ package dbms
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -17,22 +16,7 @@ type driver interface {
 	open(dsn string) gorm.Dialector
 	dsn() string
 }
-type Table struct {
-}
 
-func (conn *GormConnection) GetTables() {
-	query := `select * from information_schema.tables where table_schema = public`
-	// tables := make([]Table, 0)
-	rows, err := conn.Raw(query).Rows()
-	if err != nil {
-		return
-	}
-	cols, err := rows.Columns()
-	if err != nil {
-		return
-	}
-	fmt.Println("Rows ", cols)
-}
 func newGormConnection(driver driver, opts ...gorm.Option) (*GormConnection, error) {
 	db, err := gorm.Open(driver.open(driver.dsn()), opts...)
 	if err != nil {
