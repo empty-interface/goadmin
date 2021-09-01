@@ -8,16 +8,16 @@ import (
 )
 
 type postgresDriver struct {
-	config Config
+	cfg config
 }
 
-func newPostgresDriver(config Config) driver {
-	return postgresDriver{config}
+func newPostgresDriver(cfg config) driver {
+	return postgresDriver{cfg}
 }
 
 func (p postgresDriver) open(dsn string) gorm.Dialector {
 	return postgres.Open(dsn)
 }
 func (p postgresDriver) dsn() string {
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", p.config.Host, p.config.Port, p.config.Username, p.config.Password, p.config.DBName)
+	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", p.cfg.Host, p.cfg.Port, p.cfg.Username, p.cfg.Password, p.cfg.DBName)
 }

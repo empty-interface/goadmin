@@ -17,7 +17,6 @@ type ServerConfig struct {
 type Server struct {
 	config ServerConfig
 	router *mux.Router
-	conn   *dbms.GormConnection
 }
 
 func NewServer(config ServerConfig) (*Server, error) {
@@ -27,26 +26,21 @@ func NewServer(config ServerConfig) (*Server, error) {
 }
 func (srv *Server) setupRoutes() {
 	router := mux.NewRouter()
-	router.HandleFunc(routes.HomePath, routes.HandleHome)
+	router.HandleFunc(routes.HomePath, routes.HandleSession())
 	router.HandleFunc(routes.ConnectPath, routes.HandleConnect(srv.Connect))
-	router.HandleFunc(routes.DBPath, routes.HandleDatabase)
+	router.HandleFunc(routes.DisconnectPath, routes.HandleDisconnect)
 	srv.router = router
 }
-func (srv *Server) Connect(driver, username, password, dbname string) error {
-	driver = strings.ToLower(driver)
-	config := dbms.Config{
-		Host:     "localhost",
-		Username: username,
-		DBName:   dbname,
-		Port:     "5432",
-		Password: password,
-	}
-	conn, err := dbms.New(driver, config)
+
+func (srv *Server) Connect(sess *routes.Session) error {
+	driver := strings.ToLower(sess.Driver)
+	cfg := dbms.NewConfig(sess.Username, sess.Password, sess.DBname)
+	fmt.Printf("Connected to db using driver: %s\n", driver)
+	conn, err := dbms.NewClient(sess.Driver, cfg)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Connected to db using driver: %s\n", driver)
-	srv.conn = conn
+	sess.Conn = conn
 	return nil
 }
 func (srv *Server) getAddr() string {

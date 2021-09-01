@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	HomePath    = "/"
-	ConnectPath = "/connect"
-	DBPath      = "/database"
+	HomePath       = "/"
+	ConnectPath    = "/connect"
+	DisconnectPath = "/disconnect"
 )
 
 func HandleHome(w http.ResponseWriter, r *http.Request) {
@@ -26,8 +26,8 @@ func HandleHome(w http.ResponseWriter, r *http.Request) {
 	}{
 		Title: "GoAdminer v1",
 		Select: map[string]string{
-			"postgres": "PostgreSQL",
 			"mysql":    "mySQL",
+			"postgres": "PostgreSQL",
 		},
 		Action: ConnectPath,
 	}
@@ -38,7 +38,7 @@ func HandleHome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
-func HandleConnect(connect func(string, string, string, string) error) http.HandlerFunc {
+func HandleConnect(connect func(*Session) error) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		form, err := parseConnectForm(r.PostForm)
@@ -46,30 +46,95 @@ func HandleConnect(connect func(string, string, string, string) error) http.Hand
 			handleError(w, r, err, http.StatusBadRequest)
 			return
 		}
-		err = connect(form["driver"], form["username"], form["password"], form["dbname"])
+		sess, err := NewSession(form["driver"], form["username"], form["password"], form["dbname"])
+		if err != nil {
+			handleError(w, r, err, http.StatusInternalServerError)
+			return
+		}
+		err = connect(sess)
 		if err != nil {
 			handleError(w, r, err, http.StatusBadRequest)
 			return
 		}
-
-		http.Redirect(w, r, DBPath, http.StatusMovedPermanently)
+		addOrRefreshLoginSession(w, r, sess)
+		http.Redirect(w, r, HomePath, http.StatusPermanentRedirect)
 	})
 }
-
-func HandleDatabase(w http.ResponseWriter, r *http.Request) {
-	// we get session
-	_uuid := ""
-	session := sessionManager.get(_uuid)
-	if session == nil || session.expired() {
-		http.Redirect(w, r, HomePath, http.StatusPermanentRedirect)
-		return
+func addOrRefreshLoginSession(w http.ResponseWriter, r *http.Request, sess *Session) {
+	sessionManager := *GetGlobalSessionManager()
+	if _sess := sessionManager.get(sess.uuid); _sess != nil {
+		_sess.refresh()
+		sess = _sess
+	} else {
+		sessionManager.set(sess)
 	}
-	tmpl, err := template.ParseFiles("html/home.html")
+	fmt.Println("Creating a new session ,expires at ", sess.expiresAt().String())
+	http.SetCookie(w, &http.Cookie{
+		Name:    sessionManager.Name,
+		Value:   sess.uuid,
+		Expires: sess.expiresAt(),
+	})
+}
+func handleExpiredSession(w http.ResponseWriter, r *http.Request, sess *Session) {
+	sessionManager := *GetGlobalSessionManager()
+	if sess != nil {
+		sessionManager.delete(sess.uuid)
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:   sessionManager.Name,
+		MaxAge: -1,
+		// Value:  "",
+	})
+	fmt.Println("Deleted session")
+}
+func HandleDisconnect(w http.ResponseWriter, r *http.Request) {
+	sessionManager := *GetGlobalSessionManager()
+	var sess *Session = nil
+	cookie, err := r.Cookie(sessionManager.Name)
+	if err == nil {
+		sess = sessionManager.get(cookie.Value)
+	}
+	handleExpiredSession(w, r, sess)
+	http.Redirect(w, r, HomePath, http.StatusPermanentRedirect)
+}
+func HandleSession() http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sessionManager := *GetGlobalSessionManager()
+		cookie, err := r.Cookie(sessionManager.Name)
+		if err != nil {
+			fmt.Println("No session", err.Error())
+			handleExpiredSession(w, r, nil)
+			HandleHome(w, r)
+			return
+		}
+		sess := GetGlobalSessionManager().get(cookie.Value)
+		if sess == nil || sess.expired() {
+			fmt.Println("Session expired")
+			handleExpiredSession(w, r, sess)
+			HandleHome(w, r)
+			return
+		}
+		fmt.Println("Session is alive", sess.uuid)
+		HandleDatabase(w, r, sess)
+	})
+}
+func HandleDatabase(w http.ResponseWriter, r *http.Request, currentSession *Session) {
+	// we get session
+	tmpl, err := template.ParseFiles("html/database.html")
 	if err != nil {
 		handleError(w, r, err, http.StatusInternalServerError)
 		return
 	}
-	page := struct{}{}
+	currentSession.Conn.GetTables()
+	page := struct {
+		Title          string
+		DisconnectPath string
+		Tables         map[string]string
+	}{
+		Title:          fmt.Sprintf("GoAdmin - %s", currentSession.DBname),
+		DisconnectPath: DisconnectPath,
+		Tables:         make(map[string]string),
+	}
 	err = tmpl.Execute(w, page)
 	if err != nil {
 		handleError(w, r, err, http.StatusInternalServerError)

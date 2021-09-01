@@ -4,21 +4,34 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kalitheniks/goadmin/dbms"
 )
 
-var sessionManager SessionManager
-var maxTimeToLife time.Duration = time.Hour
+var _sessionManager *sessionManager
+
+const sessionTimeToLive time.Duration = time.Minute * 10
 
 type Session struct {
 	uuid                               string
-	driver, username, password, dbname string
+	Driver, Username, Password, DBname string
 	createdAt                          time.Time
+	Conn                               *dbms.GormConnection
 }
 
-func (session *Session) expired() bool {
-	return time.Now().Sub(session.createdAt) < maxTimeToLife
+func (sess *Session) expired() bool {
+	return time.Now().Sub(sess.createdAt) > sessionTimeToLive
 }
-func newSession(driver, username, password, dbname string) (*Session, error) {
+
+func (sess *Session) alive() bool {
+	return !sess.expired()
+}
+func (sess *Session) expiresAt() time.Time {
+	return sess.createdAt.Add(sessionTimeToLive)
+}
+func (sess *Session) refresh() {
+	sess.createdAt = time.Now()
+}
+func NewSession(driver, username, password, dbname string) (*Session, error) {
 	_uuid := ""
 	id, err := uuid.NewRandom()
 	if err != nil {
@@ -27,29 +40,42 @@ func newSession(driver, username, password, dbname string) (*Session, error) {
 	_uuid = id.String()
 	return &Session{
 		uuid:   _uuid,
-		driver: driver, username: username, password: password, dbname: dbname,
+		Driver: driver, Username: username, Password: password, DBname: dbname,
 		createdAt: time.Now(),
 	}, nil
 }
 
-type SessionManager struct {
+type sessionManager struct {
+	Name          string
 	aliveSessions map[string]*Session
 }
 
-func GetSessionManager() *SessionManager {
-	return &sessionManager
+func NewSessionManager(name string) {
+	if name == "" {
+		name = "goadminv1"
+	}
+	_sessionManager = &sessionManager{
+		Name:          name,
+		aliveSessions: make(map[string]*Session),
+	}
 }
-func (manager *SessionManager) get(id string) *Session {
+func GetGlobalSessionManager() *sessionManager {
+	if _sessionManager == nil {
+		NewSessionManager("")
+	}
+	return _sessionManager
+}
+func (manager *sessionManager) get(id string) *Session {
 	sess, ok := manager.aliveSessions[id]
 	if !ok {
 		return nil
 	}
 	return sess
 }
-func (manager *SessionManager) set(id string, sess Session) {
+func (manager *sessionManager) set(sess *Session) {
 	//we should maybe return an error if session is already there
-	manager.aliveSessions[id] = &sess
+	manager.aliveSessions[sess.uuid] = sess
 }
-func (manager *SessionManager) delete(id string) {
+func (manager *sessionManager) delete(id string) {
 	delete(manager.aliveSessions, id)
 }
