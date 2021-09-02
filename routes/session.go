@@ -17,13 +17,14 @@ var _sessionManager *sessionManager
 const sessionTimeToLive time.Duration = time.Minute * 10
 
 type Session struct {
-	uuid      string
-	Driver    string
-	Username  string
-	Password  string
-	DBname    string
-	createdAt time.Time
-	Conn      *dbms.GormConnection
+	Uuid         string
+	Driver       string
+	Username     string
+	Password     string
+	DBname       string
+	createdAt    time.Time
+	Conn         *dbms.GormConnection
+	SavedLocally bool
 }
 type infileSession struct {
 	Uuid      string `json:"uuid"`
@@ -36,7 +37,7 @@ type infileSession struct {
 
 func sessionToInfileSession(sess *Session) infileSession {
 	return infileSession{
-		Uuid:      sess.uuid,
+		Uuid:      sess.Uuid,
 		Driver:    sess.Driver,
 		Username:  sess.Username,
 		Password:  sess.Password,
@@ -47,7 +48,7 @@ func sessionToInfileSession(sess *Session) infileSession {
 
 func infileSessiontoSession(sess *infileSession) *Session {
 	return &Session{
-		uuid:      sess.Uuid,
+		Uuid:      sess.Uuid,
 		Driver:    sess.Driver,
 		Username:  sess.Username,
 		Password:  sess.Password,
@@ -69,7 +70,7 @@ func (sess *Session) expiresAt() time.Time {
 func (sess *Session) refresh() {
 	sess.createdAt = time.Now()
 }
-func NewSession(driver, username, password, dbname string) (*Session, error) {
+func NewSession(driver, username, password, dbname string, saved bool) (*Session, error) {
 	_uuid := ""
 	id, err := uuid.NewRandom()
 	if err != nil {
@@ -77,9 +78,10 @@ func NewSession(driver, username, password, dbname string) (*Session, error) {
 	}
 	_uuid = id.String()
 	return &Session{
-		uuid:   _uuid,
+		Uuid:   _uuid,
 		Driver: driver, Username: username, Password: password, DBname: dbname,
-		createdAt: time.Now(),
+		createdAt:    time.Now(),
+		SavedLocally: saved,
 	}, nil
 }
 
@@ -140,7 +142,7 @@ func (manager *sessionManager) loadSessionsFromFile() {
 func (manager *sessionManager) saveSessionsToFile() {
 	sessions := make(map[string]infileSession)
 	for _, sess := range manager.aliveSessions {
-		sessions[sess.uuid] = sessionToInfileSession(sess)
+		sessions[sess.Uuid] = sessionToInfileSession(sess)
 	}
 	b, err := json.Marshal(sessions)
 	if err != nil {
@@ -156,7 +158,7 @@ func (manager *sessionManager) saveSessionsToFile() {
 }
 func (manager *sessionManager) set(sess *Session) {
 	//we should maybe return an error if session is already there
-	manager.aliveSessions[sess.uuid] = sess
+	manager.aliveSessions[sess.Uuid] = sess
 }
 func (manager *sessionManager) delete(id string) {
 	delete(manager.aliveSessions, id)

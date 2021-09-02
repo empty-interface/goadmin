@@ -22,6 +22,49 @@
             <li class="table"><a href={{$val}} >{{$key}}</a></li>
         {{end}}
     </ul>
-    
+    <script type="application/javascript">
+        {{if .SaveConnectionLocally}}
+            function reviver(key,value){
+                if (typeof value == 'object' && value != null && value.type === "Map"){
+                    return new Map(value.data);
+                }
+                return value;
+            }
+            function replacer(key,value){
+                if (value instanceof Map){
+                    return{ 
+                        type:"Map",
+                        data:Array.from(value.entries())
+                    };
+                }else{
+                    return value;
+                }
+            }
+            let localStorage = window.localStorage;
+            let connectionsItem = localStorage.getItem("connections")
+            let connections = undefined
+            if (connectionsItem){
+                connections = JSON.parse(connectionsItem,reviver)
+                console.log("Item",connections)
+            }else{
+                connections = new Map()
+            }
+            const key = {{.Driver}} + " " + {{.Username}}+ " " + {{.DBname}}
+            const driver = {{.Driver}}
+            const username = {{.Username}}
+            const dbname = {{.DBname}}
+            const password = {{.Password}}
+            const newItem = {
+                driver:driver,
+                username:username,
+                dbname:dbname,
+                password:password,
+            };
+            connections.set(key,newItem)
+            let item = JSON.stringify(connections,replacer)
+            localStorage.setItem("connections",item)
+            // console.log("Item",localStorage.getItem("connections"))
+        {{end}}
+    </script>
 </body>
 </html>

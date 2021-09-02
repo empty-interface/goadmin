@@ -5,21 +5,76 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.Title}}</title>
+    <style>
+        .hidden{
+            display: none;
+        }
+    </style>
 </head>
 <body>
     <h1>{{.Title}}</h1>
     
-    <form action={{.Action}} method="POST">
-        <select name="driver" >
+    <form name="connectForm" action={{.Action}} method="POST">
+        <select name="driver" id="driver">
             {{range $key, $value := .Select}}
                 <option value={{$key}}>{{$value}}</option>
             {{end}}
         </select>
-        <input type="text"     placeholder="username" name="username">
-        <input type="password" placeholder="password" name="password">
-        <input type="dbname"   placeholder="dbname" name="dbname">
+        <input type="text"     placeholder="username" name="username" id="username">
+        <input type="password" placeholder="password" name="password" id="password">
+        <input type="dbname"   placeholder="dbname"      name="dbname"id="dbname">
+        <input type="checkbox"  name="rememberme">remember me</input>
         <input type="submit" />
     </form>
-    
+    <div id ="connections" class="hidden">
+        <button id="clear" onclick='clear()'>Clear</button>
+        Past connections:
+    </div>
+    <script type="application/javascript">
+        document.getElementById("clear").onclick=function clear(){
+            console.log("clearing")
+            window.localStorage.removeItem("connections")
+            document.getElementById("connections").classList.add("hidden")
+        }
+        function showPastConnections(){
+            function reviver(key,value){
+                if (typeof value == 'object' && value != null && value.type === "Map"){
+                    return new Map(value.data);
+                }
+                return value;
+            }
+            let localStorage = window.localStorage;
+            let connectionsItem = localStorage.getItem("connections")
+            if (connectionsItem !== ""){
+                let connections = JSON.parse(connectionsItem,reviver)
+                const elem = document.getElementById("connections")
+                if (elem && connections instanceof Map){
+                    elem.classList.remove("hidden") 
+                    const ul = document.createElement('ul')
+                    elem.appendChild(ul)
+                    console.log("connections",connections)
+                    connections.forEach(function(value,key,_){
+                        const li = document.createElement("li")
+                        const div = document.createElement("div")
+                        div.href = "/connect"
+                        div.addEventListener("click",function(event){
+                            document.getElementById("driver").value = value.driver
+                            document.getElementById("username").value = value.username
+                            document.getElementById("password").value = value.password
+                            document.getElementById("dbname").value = value.dbname
+                            document.connectForm.submit();
+                        })
+                        div.innerText = key
+                        li.appendChild(div)
+                        ul.appendChild(li)
+                    }) 
+                }else{
+                    elem.classList.add("hidden")
+                }
+            }
+        }
+   
+        showPastConnections()
+    </script>
 </body>
 </html>

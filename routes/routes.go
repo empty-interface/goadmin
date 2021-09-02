@@ -38,30 +38,6 @@ func (handler HandleError) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func HandleHome(w http.ResponseWriter, r *http.Request) (int, error) {
-	tmpl, err := template.ParseFiles("html/home.html")
-	if err != nil {
-		return http.StatusInternalServerError, err
-	}
-	page := struct {
-		Title  string
-		Action string
-		Select interface{}
-	}{
-		Title: "GoAdminer v1",
-		Select: map[string]string{
-			"mysql":    "mySQL",
-			"postgres": "PostgreSQL",
-		},
-		Action: ConnectPath,
-	}
-	w.Header().Set("Content-type", "text/html")
-	err = tmpl.Execute(w, page)
-	if err != nil {
-		return http.StatusInternalServerError, err
-	}
-	return -1, nil
-}
 func HandleConnect(connect func(*Session) error) HandleError {
 	return HandleError(func(w http.ResponseWriter, r *http.Request) (int, error) {
 		r.ParseForm()
@@ -69,7 +45,11 @@ func HandleConnect(connect func(*Session) error) HandleError {
 		if err != nil {
 			return http.StatusBadRequest, err
 		}
-		sess, err := NewSession(form["driver"], form["username"], form["password"], form["dbname"])
+		saved := false
+		if form["rememberme"] == "on" {
+			saved = true
+		}
+		sess, err := NewSession(form["driver"], form["username"], form["password"], form["dbname"], saved)
 		if err != nil {
 			return http.StatusInternalServerError, err
 		}
@@ -84,7 +64,7 @@ func HandleConnect(connect func(*Session) error) HandleError {
 }
 func addOrRefreshLoginSession(w http.ResponseWriter, r *http.Request, sess *Session) {
 	sessionManager := *GetGlobalSessionManager()
-	if _sess := sessionManager.get(sess.uuid); _sess != nil {
+	if _sess := sessionManager.get(sess.Uuid); _sess != nil {
 		_sess.refresh()
 		sess = _sess
 	} else {
@@ -93,31 +73,22 @@ func addOrRefreshLoginSession(w http.ResponseWriter, r *http.Request, sess *Sess
 	fmt.Println("Creating a new session ,expires at ", sess.expiresAt().String())
 	http.SetCookie(w, &http.Cookie{
 		Name:    sessionManager.Name,
-		Value:   sess.uuid,
+		Value:   sess.Uuid,
 		Expires: sess.expiresAt(),
 	})
 }
 func handleExpiredSession(w http.ResponseWriter, r *http.Request, sess *Session) {
 	sessionManager := *GetGlobalSessionManager()
 	if sess != nil {
-		sessionManager.delete(sess.uuid)
+		sessionManager.delete(sess.Uuid)
 		fmt.Println("Deleted session")
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name:   sessionManager.Name,
+		Value:  "",
 		MaxAge: -1,
-		// Value:  "",
+		// Expires: time.Now(),
 	})
-}
-func HandleDisconnect(w http.ResponseWriter, r *http.Request) {
-	sessionManager := *GetGlobalSessionManager()
-	var sess *Session = nil
-	cookie, err := r.Cookie(sessionManager.Name)
-	if err == nil {
-		sess = sessionManager.get(cookie.Value)
-	}
-	handleExpiredSession(w, r, sess)
-	http.Redirect(w, r, HomePath, http.StatusPermanentRedirect)
 }
 func HandleSession(connect func(*Session) error) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -144,31 +115,9 @@ func HandleSession(connect func(*Session) error) http.HandlerFunc {
 				return
 			}
 		}
-		fmt.Println("Session is alive", sess.uuid)
+		fmt.Println("Session is alive", sess.Uuid)
 		HandleDatabase(w, r, sess)
 	})
-}
-func HandleDatabase(w http.ResponseWriter, r *http.Request, currentSession *Session) (int, error) {
-	// we get session
-	tmpl, err := template.ParseFiles("html/database.html")
-	if err != nil {
-		return http.StatusInternalServerError, err
-	}
-	currentSession.Conn.GetTables()
-	page := struct {
-		Title          string
-		DisconnectPath string
-		Tables         map[string]string
-	}{
-		Title:          fmt.Sprintf("GoAdmin - %s", currentSession.DBname),
-		DisconnectPath: DisconnectPath,
-		Tables:         make(map[string]string),
-	}
-	err = tmpl.Execute(w, page)
-	if err != nil {
-		return http.StatusInternalServerError, err
-	}
-	return -1, nil
 }
 
 func parseConnectForm(map_ url.Values) (map[string]string, error) {
@@ -185,6 +134,11 @@ func parseConnectForm(map_ url.Values) (map[string]string, error) {
 			return nil, fmt.Errorf("Missing form field:%s", field)
 		}
 		ret[name] = v[0]
+	}
+	ret["rememberme"] = "off"
+	v, ok := map_["rememberme"]
+	if ok && v[0] == "on" {
+		ret["rememberme"] = "on"
 	}
 	return ret, nil
 }
