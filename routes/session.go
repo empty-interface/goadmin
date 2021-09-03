@@ -86,6 +86,7 @@ func NewSession(driver, username, password, dbname string, saved bool) (*Session
 }
 
 type sessionManager struct {
+	ItemName       string
 	outputFilename string
 	Name           string
 	aliveSessions  map[string]*Session
@@ -96,6 +97,7 @@ func NewSessionManager(name string) {
 		name = "goadminv1"
 	}
 	_sessionManager = &sessionManager{
+		ItemName:       "sessions",
 		Name:           name,
 		aliveSessions:  make(map[string]*Session),
 		outputFilename: "./sessions.json",
@@ -113,6 +115,7 @@ func (manager *sessionManager) get(id string) *Session {
 	if !ok {
 		return nil
 	}
+
 	return sess
 }
 func (manager *sessionManager) Close() {

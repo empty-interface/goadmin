@@ -24,16 +24,17 @@
         <input type="password" placeholder="password" name="password" id="password">
         <input type="dbname"   placeholder="dbname"      name="dbname"id="dbname">
         <input type="checkbox"  name="rememberme">remember me</input>
-        <input type="submit" />
+        <input type="submit" value="Connect"/>
     </form>
     <div id ="connections" class="hidden">
         <button id="clear" onclick='clear()'>Clear</button>
         Past connections:
     </div>
-    <script type="application/javascript">
+    <script type="text/template">
+        const itemName = "{{.ItemName}}";
         document.getElementById("clear").onclick=function clear(){
             console.log("clearing")
-            window.localStorage.removeItem("connections")
+            window.localStorage.removeItem(itemName)
             document.getElementById("connections").classList.add("hidden")
         }
         function showPastConnections(){
@@ -44,7 +45,7 @@
                 return value;
             }
             let localStorage = window.localStorage;
-            let connectionsItem = localStorage.getItem("connections")
+            let connectionsItem = localStorage.getItem(itemName)
             if (connectionsItem !== ""){
                 let connections = JSON.parse(connectionsItem,reviver)
                 const elem = document.getElementById("connections")

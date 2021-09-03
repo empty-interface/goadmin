@@ -18,12 +18,13 @@
     </header>
     
     <ul class="tables">
-        {{range $key,$val := .Tables}}
-            <li class="table"><a href={{$val}} >{{$key}}</a></li>
+        {{range  .Tables}}
+            <li class="table"><a alt="" href={{printf "/table?name=%s&a=%v" .Name $.Junk}} >{{.Name}}</a></li>
         {{end}}
     </ul>
     <script type="application/javascript">
         {{if .SaveConnectionLocally}}
+            const itemName = "{{.ItemName}}";
             function reviver(key,value){
                 if (typeof value == 'object' && value != null && value.type === "Map"){
                     return new Map(value.data);
@@ -41,7 +42,7 @@
                 }
             }
             let localStorage = window.localStorage;
-            let connectionsItem = localStorage.getItem("connections")
+            let connectionsItem = localStorage.getItem(itemName)
             let connections = undefined
             if (connectionsItem){
                 connections = JSON.parse(connectionsItem,reviver)
@@ -62,7 +63,7 @@
             };
             connections.set(key,newItem)
             let item = JSON.stringify(connections,replacer)
-            localStorage.setItem("connections",item)
+            localStorage.setItem(itemName,item)
             // console.log("Item",localStorage.getItem("connections"))
         {{end}}
     </script>

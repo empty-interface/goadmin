@@ -5,22 +5,22 @@ import (
 	"net/http"
 )
 
+const HomePath = "/"
+
 func HandleHome(w http.ResponseWriter, r *http.Request) (int, error) {
 	tmpl, err := template.ParseFiles("html/home.html")
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
-	page := struct {
-		Title  string
-		Action string
-		Select interface{}
-	}{
+	sessionManager := GetGlobalSessionManager()
+	page := homePage{
 		Title: "GoAdminer v1",
 		Select: map[string]string{
-			"mysql":    "mySQL",
 			"postgres": "PostgreSQL",
+			// "mysql":    "MySQL",
 		},
-		Action: ConnectPath,
+		ItemName: sessionManager.ItemName,
+		Action:   ConnectPath,
 	}
 	w.Header().Set("Content-type", "text/html")
 	err = tmpl.Execute(w, page)
@@ -28,4 +28,11 @@ func HandleHome(w http.ResponseWriter, r *http.Request) (int, error) {
 		return http.StatusInternalServerError, err
 	}
 	return -1, nil
+}
+
+type homePage struct {
+	Title    string
+	Action   string
+	ItemName string
+	Select   interface{}
 }

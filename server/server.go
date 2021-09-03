@@ -29,8 +29,9 @@ func NewServer(config ServerConfig) (*Server, error) {
 func (srv *Server) setupRoutes() {
 	router := mux.NewRouter()
 	router.HandleFunc(routes.DisconnectPath, routes.HandleDisconnect)
-	router.Handle(routes.HomePath, routes.HandleSession(srv.Connect))
+	router.Handle(routes.HomePath, routes.HandleSession(srv.Connect, routes.HandleDatabase))
 	router.Handle(routes.ConnectPath, routes.HandleConnect(srv.Connect))
+	router.Handle(routes.TablePath, routes.HandleSession(srv.Connect, routes.HandleTable))
 	srv.router = router
 }
 

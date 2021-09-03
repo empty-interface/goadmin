@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style type="text/css">
+        .table { background-color:#FFFFE0;border-collapse:collapse;color:#000;}
+        .table th { background-color:#BDB76B;color:white;width:50%; }
+        .table td, .table th { padding:5px;border:0; }
+        .table td { border-bottom:1px dotted #BDB76B; }
+    </style>
+</head>
+<body>
+    <div>
+        <h3>{{.TableName}}</h3>
+        <a href="/">database</a>
+    </div>
+    {{if eq .Showing  "structure"}}
+        <a href="/table?name={{.TableName}}&section=structure"><strong>structure</strong></a>
+        <a href="/table?name={{.TableName}}&section=select" >select</a>
+        <a href="/table?name={{.TableName}}&section=add">add</a>
+
+        <table class="table">
+            <tr>
+                <th>Column</th>
+                <th>Types</th>
+            </tr>
+            {{range $k,$v := .Structure.Types}}
+                <tr>
+                    <td>{{ ($v).Name}}</th>
+                    <td>{{ ($v).DatabaseTypeName}}</th>
+                </tr>
+            {{end}}
+        </table>
+    {{end}}
+    {{if eq .Showing  "select"}}
+        <a href="/table?name={{.TableName}}&section=structure">structure</strong></a>
+        <a href="/table?name={{.TableName}}&section=select"><strong>select</strong></a>
+        <a href="/table?name={{.TableName}}&section=add">add</a>
+
+        <table class="table">
+            <tr>
+                {{range $k,$name := .Select.Names}}
+                    <th>{{$name}}</th>
+                {{end}}
+            </tr>
+            {{range $k,$row := .Select.Rows}}
+                <tr>
+                    {{range $j,$i := $row}}
+                        <td>
+                            {{$i}}
+                        </td>
+                    {{end}}
+                </tr>
+            {{end}}
+        </table>
+    {{end}}
+    {{if eq .Showing  "add"}}
+        <a href="/table?name={{.TableName}}&section=structure"><strong>structure</strong></a>
+        <a href="/table?name={{.TableName}}&section=select">select</a>
+        <a href="/table?name={{.TableName}}&section=add"><strong>add</strong></a>
+    {{end}}
+</body>
+</html>

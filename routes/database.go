@@ -1,39 +1,59 @@
 package routes
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
 	"net/http"
+	"time"
+
+	"github.com/empty-interface/goadmin/dbms"
 )
 
 func HandleDatabase(w http.ResponseWriter, r *http.Request, currentSession *Session) (int, error) {
 	// we get session
 	tmpl := template.Must(template.ParseFiles("html/database.html"))
-	currentSession.Conn.GetTables()
-	page := struct {
-		Title                 string
-		DisconnectPath        string
-		Tables                map[string]string
-		Driver                string
-		Username              string
-		DBname                string
-		Password              string
-		Uuid                  string
-		SaveConnectionLocally bool
-	}{
+	tables := currentSession.Conn.GetTables()
+	page := databasePage{
 		Title:                 fmt.Sprintf("GoAdmin - %s", currentSession.DBname),
-		DisconnectPath:        DisconnectPath,
-		Tables:                make(map[string]string),
+		DisconnectPath:        fmt.Sprintf("%s?a=%v", DisconnectPath, time.Now().UnixMilli()),
+		Tables:                tables,
 		Driver:                currentSession.Driver,
 		DBname:                currentSession.DBname,
 		Username:              currentSession.Username,
 		Password:              currentSession.Password,
 		Uuid:                  currentSession.Uuid,
 		SaveConnectionLocally: currentSession.SavedLocally,
+		ItemName:              GetGlobalSessionManager().ItemName,
+		Junk:                  time.Now().UnixMilli(),
 	}
-	err := tmpl.Execute(w, page)
+	buffer := bytes.NewBufferString("")
+	err := tmpl.Execute(buffer, page)
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
+	buffer.WriteTo(w)
 	return -1, nil
+}
+func getCurrentSession(r *http.Request) *Session {
+	sessionManager := GetGlobalSessionManager()
+	cookie, err := r.Cookie(sessionManager.Name)
+	if err != nil {
+		return nil
+	}
+	return sessionManager.get(cookie.Value)
+}
+
+type databasePage struct {
+	Title                 string
+	DisconnectPath        string
+	Tables                []dbms.Table
+	Driver                string
+	Username              string
+	DBname                string
+	Password              string
+	Uuid                  string
+	SaveConnectionLocally bool
+	ItemName              string
+	Junk                  int64
 }
