@@ -3,6 +3,8 @@ package routes
 import (
 	"html/template"
 	"net/http"
+
+	"github.com/empty-interface/goadmin/session"
 )
 
 const HomePath = "/"
@@ -12,7 +14,7 @@ func HandleHome(w http.ResponseWriter, r *http.Request) (int, error) {
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
-	sessionManager := GetGlobalSessionManager()
+	sessionManager := session.GetGlobalSessionManager()
 	page := homePage{
 		Title: "GoAdminer v1",
 		Select: map[string]string{

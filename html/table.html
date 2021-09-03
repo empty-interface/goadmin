@@ -20,12 +20,12 @@
     {{if eq .Showing  "structure"}}
         <a href="/table?name={{.TableName}}&section=structure"><strong>structure</strong></a>
         <a href="/table?name={{.TableName}}&section=select" >select</a>
-        <a href="/table?name={{.TableName}}&section=add">add</a>
+        <a href="/table?name={{.TableName}}&section=insertrow">add</a>
 
         <table class="table">
             <tr>
                 <th>Column</th>
-                <th>Types</th>
+                <th>Type</th>
             </tr>
             {{range $k,$v := .Structure.Types}}
                 <tr>
@@ -38,9 +38,9 @@
     {{if eq .Showing  "select"}}
         <a href="/table?name={{.TableName}}&section=structure">structure</strong></a>
         <a href="/table?name={{.TableName}}&section=select"><strong>select</strong></a>
-        <a href="/table?name={{.TableName}}&section=add">add</a>
+        <a href="/table?name={{.TableName}}&section=insertrow">add</a>
         <form action="/table" method="GET">
-            <textarea name="query">{{.Select.Query}}</textarea>
+            <textarea name="query" cols="100">{{.Select.Query}}</textarea>
             <input type="hidden" name="name" value="{{.TableName}}">
             <input type="hidden" name="section" value="select">
             <input type="submit" value="execute">
@@ -69,10 +69,34 @@
             </table>
         {{end}}
     {{end}}
-    {{if eq .Showing  "add"}}
+    {{if eq .Showing  "insertrow"}}
         <a href="/table?name={{.TableName}}&section=structure"><strong>structure</strong></a>
         <a href="/table?name={{.TableName}}&section=select">select</a>
-        <a href="/table?name={{.TableName}}&section=add"><strong>add</strong></a>
+        <a href="/table?name={{.TableName}}&section=insertrow"><strong>add</strong></a>
+        <form action="/insertrow" class="table" method="GET">
+            <input type="hidden" name="table" value="{{.TableName}}">
+            <table>
+                {{range $i,$col := .InsertRow.Types}}
+                    <tr>
+                        <th>
+                            {{$col.Name}}
+                        </th>
+                        {{if eq $col.DatabaseTypeName "VARCHAR"}}
+                            <td><input type="text" name="{{$col.Name}}"></td>
+                        {{else if eq $col.DatabaseTypeName "INT4"}}
+                            <td><input type="number" name="{{$col.Name}}"></td>
+                        {{else if eq $col.DatabaseTypeName "INT8"}}
+                            <td><input type="number" name="{{$col.Name}}"></td>
+                        {{else if eq $col.DatabaseTypeName "BOOL"}}
+                            <td><input type="checkbox" name="{{$col.Name}}" value="true"></td>
+                        {{else}}
+                            <td><input type="text" name="{{$col.Name}}"></td>
+                        {{end}}
+                    </tr>
+                {{end}}
+            </table>
+            <input type="submit" value="Insert">
+        </form>
     {{end}}
     
 </body>

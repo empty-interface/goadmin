@@ -1,4 +1,4 @@
-package routes
+package session
 
 import (
 	"encoding/json"
@@ -57,17 +57,17 @@ func infileSessiontoSession(sess *infileSession) *Session {
 		Conn:      nil,
 	}
 }
-func (sess *Session) expired() bool {
+func (sess *Session) Expired() bool {
 	return time.Now().Sub(sess.createdAt) > sessionTimeToLive
 }
 
-func (sess *Session) alive() bool {
-	return !sess.expired()
+func (sess *Session) Alive() bool {
+	return !sess.Expired()
 }
-func (sess *Session) expiresAt() time.Time {
+func (sess *Session) ExpiresAt() time.Time {
 	return sess.createdAt.Add(sessionTimeToLive)
 }
-func (sess *Session) refresh() {
+func (sess *Session) Refresh() {
 	sess.createdAt = time.Now()
 }
 func NewSession(driver, username, password, dbname string, saved bool) (*Session, error) {
@@ -110,7 +110,7 @@ func GetGlobalSessionManager() *sessionManager {
 	}
 	return _sessionManager
 }
-func (manager *sessionManager) get(id string) *Session {
+func (manager *sessionManager) Get(id string) *Session {
 	sess, ok := manager.aliveSessions[id]
 	if !ok {
 		return nil
@@ -135,7 +135,7 @@ func (manager *sessionManager) loadSessionsFromFile() {
 	}
 	for _, sess := range sessions {
 		_s := infileSessiontoSession(&sess)
-		if _s.alive() {
+		if _s.Alive() {
 			manager.aliveSessions[sess.Uuid] = _s
 		}
 	}
@@ -159,10 +159,10 @@ func (manager *sessionManager) saveSessionsToFile() {
 	}
 	fmt.Println("Sessions saved")
 }
-func (manager *sessionManager) set(sess *Session) {
+func (manager *sessionManager) Set(sess *Session) {
 	//we should maybe return an error if session is already there
 	manager.aliveSessions[sess.Uuid] = sess
 }
-func (manager *sessionManager) delete(id string) {
+func (manager *sessionManager) Delete(id string) {
 	delete(manager.aliveSessions, id)
 }

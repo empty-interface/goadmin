@@ -6,13 +6,14 @@ import (
 	"net/http"
 
 	"github.com/empty-interface/goadmin/dbms"
+	"github.com/empty-interface/goadmin/session"
 )
 
 const TablePath = "/table"
 
-var sections = []string{"structure", "select", "add", "custom"}
+var sections = []string{"structure", "select", "insertrow"}
 
-func HandleTable(w http.ResponseWriter, r *http.Request, currentSession *Session) (int, error) {
+func HandleTable(w http.ResponseWriter, r *http.Request, currentSession *session.Session) (int, error) {
 	tableName := getTableName(r)
 	if tableName == "" {
 		return http.StatusBadRequest, fmt.Errorf("Invalid table name")
@@ -46,18 +47,28 @@ func HandleTable(w http.ResponseWriter, r *http.Request, currentSession *Session
 			page.Select.Rows = rows
 			page.Select.Names = names
 		}
-	case "custom":
-
+	case "insertrow":
+		err := insertRow(&page, currentSession, tableName)
+		if err != nil {
+			return http.StatusInternalServerError, err
+		}
 	}
 	tmpl.Execute(w, &page)
 	return -1, nil
 
 }
-
-func showSelect(currentSession *Session, name string, limit int) ([][]interface{}, []string, error) {
+func insertRow(page *tablePage, currentSession *session.Session, name string) error {
+	tableInfo, err := showStructure(currentSession, name)
+	if err != nil {
+		return err
+	}
+	page.InsertRow = tableInfo
+	return nil
+}
+func showSelect(currentSession *session.Session, name string, limit int) ([][]interface{}, []string, error) {
 	return currentSession.Conn.GetTableRows(name, limit)
 }
-func showStructure(currentSession *Session, name string) (*dbms.TableInfo, error) {
+func showStructure(currentSession *session.Session, name string) (*dbms.TableInfo, error) {
 	tableInfo, err := currentSession.Conn.GetTableInfo(name)
 	if err != nil {
 		return nil, err
@@ -97,6 +108,7 @@ func getQuery(r *http.Request, tableName string, limit int) string {
 }
 
 type tablePage struct {
+	InsertRow *dbms.TableInfo
 	Showing   string
 	TableName string
 	Structure *dbms.TableInfo

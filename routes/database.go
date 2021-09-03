@@ -8,9 +8,10 @@ import (
 	"time"
 
 	"github.com/empty-interface/goadmin/dbms"
+	"github.com/empty-interface/goadmin/session"
 )
 
-func HandleDatabase(w http.ResponseWriter, r *http.Request, currentSession *Session) (int, error) {
+func HandleDatabase(w http.ResponseWriter, r *http.Request, currentSession *session.Session) (int, error) {
 	// we get session
 	tmpl := template.Must(template.ParseFiles("html/database.html"))
 	tables := currentSession.Conn.GetTables()
@@ -24,7 +25,7 @@ func HandleDatabase(w http.ResponseWriter, r *http.Request, currentSession *Sess
 		Password:              currentSession.Password,
 		Uuid:                  currentSession.Uuid,
 		SaveConnectionLocally: currentSession.SavedLocally,
-		ItemName:              GetGlobalSessionManager().ItemName,
+		ItemName:              session.GetGlobalSessionManager().ItemName,
 		Junk:                  time.Now().UnixMilli(),
 	}
 	buffer := bytes.NewBufferString("")
@@ -35,13 +36,13 @@ func HandleDatabase(w http.ResponseWriter, r *http.Request, currentSession *Sess
 	buffer.WriteTo(w)
 	return -1, nil
 }
-func getCurrentSession(r *http.Request) *Session {
-	sessionManager := GetGlobalSessionManager()
+func getCurrentSession(r *http.Request) *session.Session {
+	sessionManager := session.GetGlobalSessionManager()
 	cookie, err := r.Cookie(sessionManager.Name)
 	if err != nil {
 		return nil
 	}
-	return sessionManager.get(cookie.Value)
+	return sessionManager.Get(cookie.Value)
 }
 
 type databasePage struct {

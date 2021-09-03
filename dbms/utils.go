@@ -3,6 +3,7 @@ package dbms
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 type Table struct {
@@ -17,7 +18,39 @@ func (*Table) TableName() string {
 
 	return "information_schema.tables"
 }
-
+func wrapString(s *string) {
+	*s = fmt.Sprintf(`"%s"`, *s)
+}
+func wrapStrings(s *[]string) {
+	for i := range *s {
+		wrapString(&(*s)[i])
+	}
+}
+func (conn *GormConnection) InsertRow(table string, columns []string, values []interface{}) error {
+	wrapStrings(&columns)
+	wrapString(&table)
+	cols := strings.Join(columns, ",")
+	_vals := make([]string, len(values))
+	for i := range values {
+		_vals[i] = "?"
+	}
+	vals := strings.Join(_vals, ",")
+	query := fmt.Sprintf(`insert into %s (%s) values (%s)`, table, cols, vals)
+	conn.Exec(query, values...)
+	return conn.Error
+}
+func (conn *GormConnection) GetTableColumns(name string) ([]string, error) {
+	query := fmt.Sprintf(`select * from %s Limit 1`, name)
+	rows, err := conn.Raw(query).Rows()
+	if err != nil {
+		return nil, err
+	}
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+	return cols, nil
+}
 func (conn *GormConnection) GetTables() []Table {
 	// query := `select * from information_schema.tables where table_schema = 'public'`
 	// tables := make([]Table, 0)
@@ -47,12 +80,12 @@ func (conn *GormConnection) GetTableRows(query string, limit int) ([][]interface
 		return nil, nil, err
 	}
 	var result [][]interface{}
-	row := make([]interface{}, len(cols))
 	temp := make([]interface{}, len(cols))
-	for i := range temp {
-		temp[i] = &row[i]
-	}
 	for rows.Next() {
+		row := make([]interface{}, len(cols))
+		for i := range temp {
+			temp[i] = &row[i]
+		}
 		rows.Scan(temp...)
 		result = append(result, row)
 	}

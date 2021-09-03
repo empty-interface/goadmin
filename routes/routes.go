@@ -5,6 +5,8 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+
+	"github.com/empty-interface/goadmin/session"
 )
 
 const ConnectPath = "/connect"
@@ -34,7 +36,7 @@ func (handler HandleError) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func HandleConnect(connect func(*Session) error) HandleError {
+func HandleConnect(connect func(*session.Session) error) HandleError {
 	return HandleError(func(w http.ResponseWriter, r *http.Request) (int, error) {
 		r.ParseForm()
 		form, err := parseConnectForm(r.PostForm)
@@ -45,7 +47,7 @@ func HandleConnect(connect func(*Session) error) HandleError {
 		if form["rememberme"] == "on" {
 			saved = true
 		}
-		sess, err := NewSession(form["driver"], form["username"], form["password"], form["dbname"], saved)
+		sess, err := session.NewSession(form["driver"], form["username"], form["password"], form["dbname"], saved)
 		if err != nil {
 			return http.StatusInternalServerError, err
 		}
@@ -58,26 +60,26 @@ func HandleConnect(connect func(*Session) error) HandleError {
 		return -1, nil
 	})
 }
-func addOrRefreshLoginSession(w http.ResponseWriter, r *http.Request, sess *Session) {
-	sessionManager := GetGlobalSessionManager()
-	if _sess := sessionManager.get(sess.Uuid); _sess != nil {
-		_sess.refresh()
+func addOrRefreshLoginSession(w http.ResponseWriter, r *http.Request, sess *session.Session) {
+	sessionManager := session.GetGlobalSessionManager()
+	if _sess := sessionManager.Get(sess.Uuid); _sess != nil {
+		_sess.Refresh()
 		sess = _sess
 	} else {
-		sessionManager.set(sess)
+		sessionManager.Set(sess)
 	}
-	fmt.Println("Creating a new session ,expires at ", sess.expiresAt().String())
+	fmt.Println("Creating a new session ,expires at ", sess.ExpiresAt().String())
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionManager.Name,
 		Value:    sess.Uuid,
-		Expires:  sess.expiresAt(),
+		Expires:  sess.ExpiresAt(),
 		HttpOnly: true,
 	})
 }
-func handleExpiredSession(w http.ResponseWriter, r *http.Request, sess *Session) {
-	sessionManager := GetGlobalSessionManager()
+func handleExpiredSession(w http.ResponseWriter, r *http.Request, sess *session.Session) {
+	sessionManager := session.GetGlobalSessionManager()
 	if sess != nil {
-		sessionManager.delete(sess.Uuid)
+		sessionManager.Delete(sess.Uuid)
 		fmt.Println("Deleted session")
 	}
 	http.SetCookie(w, &http.Cookie{
@@ -88,11 +90,11 @@ func handleExpiredSession(w http.ResponseWriter, r *http.Request, sess *Session)
 	})
 }
 
-type handlerWithSession func(http.ResponseWriter, *http.Request, *Session) (int, error)
+type handlerWithSession func(http.ResponseWriter, *http.Request, *session.Session) (int, error)
 
-func HandleSession(connect func(*Session) error, next handlerWithSession) HandleError {
+func HandleSession(connect func(*session.Session) error, next handlerWithSession) HandleError {
 	return HandleError(func(w http.ResponseWriter, r *http.Request) (int, error) {
-		sessionManager := GetGlobalSessionManager()
+		sessionManager := session.GetGlobalSessionManager()
 		cookie, err := r.Cookie(sessionManager.Name)
 		if err != nil {
 			fmt.Println("No session", err.Error())
@@ -100,8 +102,8 @@ func HandleSession(connect func(*Session) error, next handlerWithSession) Handle
 			HandleHome(w, r)
 			return -1, nil
 		}
-		sess := GetGlobalSessionManager().get(cookie.Value)
-		if sess == nil || sess.expired() {
+		sess := session.GetGlobalSessionManager().Get(cookie.Value)
+		if sess == nil || sess.Expired() {
 			fmt.Println("Session expired")
 			handleExpiredSession(w, r, sess)
 			HandleHome(w, r)

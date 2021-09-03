@@ -8,6 +8,7 @@ import (
 
 	"github.com/empty-interface/goadmin/dbms"
 	"github.com/empty-interface/goadmin/routes"
+	"github.com/empty-interface/goadmin/session"
 	"github.com/gorilla/mux"
 )
 
@@ -32,10 +33,11 @@ func (srv *Server) setupRoutes() {
 	router.Handle(routes.HomePath, routes.HandleSession(srv.Connect, routes.HandleDatabase))
 	router.Handle(routes.ConnectPath, routes.HandleConnect(srv.Connect))
 	router.Handle(routes.TablePath, routes.HandleSession(srv.Connect, routes.HandleTable))
+	router.Handle(routes.InsertRowPath, routes.HandleSession(srv.Connect, routes.HandleInsert))
 	srv.router = router
 }
 
-func (srv *Server) Connect(sess *routes.Session) error {
+func (srv *Server) Connect(sess *session.Session) error {
 	driver := strings.ToLower(sess.Driver)
 	cfg := dbms.NewConfig(sess.Username, sess.Password, sess.DBname)
 	fmt.Printf("Connected to db using driver: %s\n", driver)
@@ -54,7 +56,7 @@ func (srv *Server) Close(ctx context.Context) {
 	done := make(chan bool, 1)
 	go func() {
 		srv.httpServer.Shutdown(ctx)
-		manager := routes.GetGlobalSessionManager()
+		manager := session.GetGlobalSessionManager()
 		if manager != nil {
 			manager.Close()
 		}
