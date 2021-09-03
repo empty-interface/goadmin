@@ -3,7 +3,6 @@ package dbms
 import (
 	"database/sql"
 	"fmt"
-	_ "github.com/lib/pq"
 )
 
 type Table struct {
@@ -37,9 +36,12 @@ type TableInfo struct {
 	Types []*sql.ColumnType
 }
 
-func (conn *GormConnection) GetTableRows(name string, limit int) ([][]interface{}, []string, error) {
-	query := fmt.Sprintf(`select * from %s limit %v`, name, limit)
+func (conn *GormConnection) GetTableRows(query string, limit int) ([][]interface{}, []string, error) {
+	// query := fmt.Sprintf(`select * from %s limit %v`, name, limit)
 	rows, err := conn.Raw(query).Rows()
+	if err != nil {
+		return nil, nil, err
+	}
 	cols, err := rows.Columns()
 	if err != nil {
 		return nil, nil, err
@@ -54,9 +56,6 @@ func (conn *GormConnection) GetTableRows(name string, limit int) ([][]interface{
 		rows.Scan(temp...)
 		result = append(result, row)
 	}
-	// fmt.Println("--------------------------------\n ")
-	// fmt.Println("data", result)
-	// fmt.Println("\n--------------------------------")
 	return result, cols, nil
 }
 func (conn *GormConnection) GetTableInfo(name string) (*TableInfo, error) {

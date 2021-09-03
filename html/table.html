@@ -39,28 +39,41 @@
         <a href="/table?name={{.TableName}}&section=structure">structure</strong></a>
         <a href="/table?name={{.TableName}}&section=select"><strong>select</strong></a>
         <a href="/table?name={{.TableName}}&section=add">add</a>
-
-        <table class="table">
-            <tr>
-                {{range $k,$name := .Select.Names}}
-                    <th>{{$name}}</th>
-                {{end}}
-            </tr>
-            {{range $k,$row := .Select.Rows}}
+        <form action="/table" method="GET">
+            <textarea name="query">{{.Select.Query}}</textarea>
+            <input type="hidden" name="name" value="{{.TableName}}">
+            <input type="hidden" name="section" value="select">
+            <input type="submit" value="execute">
+        </form>
+        {{if .Select.Error}}
+            <div>
+                <h5>Error</h5>
+                <div>{{.Select.ErrMsg}}</div>
+            </div>
+        {{else}}
+            <table class="table">
                 <tr>
-                    {{range $j,$i := $row}}
-                        <td>
-                            {{$i}}
-                        </td>
+                    {{range $k,$name := .Select.Names}}
+                        <th>{{$name}}</th>
                     {{end}}
                 </tr>
-            {{end}}
-        </table>
+                {{range $k,$row := .Select.Rows}}
+                    <tr>
+                        {{range $j,$i := $row}}
+                            <td>
+                                {{$i}}
+                            </td>
+                        {{end}}
+                    </tr>
+                {{end}}
+            </table>
+        {{end}}
     {{end}}
     {{if eq .Showing  "add"}}
         <a href="/table?name={{.TableName}}&section=structure"><strong>structure</strong></a>
         <a href="/table?name={{.TableName}}&section=select">select</a>
         <a href="/table?name={{.TableName}}&section=add"><strong>add</strong></a>
     {{end}}
+    
 </body>
 </html>

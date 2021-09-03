@@ -10,39 +10,45 @@ import (
 
 const TablePath = "/table"
 
-var sections = []string{"structure", "select", "add"}
+var sections = []string{"structure", "select", "add", "custom"}
 
 func HandleTable(w http.ResponseWriter, r *http.Request, currentSession *Session) (int, error) {
-	name := getTableName(r)
-	if name == "" {
+	tableName := getTableName(r)
+	if tableName == "" {
 		return http.StatusBadRequest, fmt.Errorf("Invalid table name")
 	}
 	tmpl := template.Must(template.ParseFiles("html/table.html"))
 	sectionToShow := getSection(r, "structure")
 	page := tablePage{
 		Showing:   sectionToShow,
-		TableName: name,
+		TableName: tableName,
 	}
 
 	switch sectionToShow {
 	case "structure":
-		str, err := showStructure(currentSession, name)
+		str, err := showStructure(currentSession, tableName)
 		if err != nil {
 			return http.StatusBadRequest, err
 		}
 		page.Structure = str
 	case "select":
-		rows, names, err := showSelect(currentSession, name, 50)
-		if err != nil {
-			return http.StatusBadRequest, err
-		}
-		fmt.Println("Data length", len(rows))
-		page.Select = &selectSection{
-			Rows:  rows,
-			Names: names,
-		}
-	}
+		page.Select = &selectSection{}
+		query := getQuery(r, tableName, 50)
+		rows, names, err := showSelect(currentSession, query, 50)
 
+		page.Select.Query = query
+		page.Select.Error = false
+		if err != nil {
+			page.Select.Error = true
+			page.Select.ErrMsg = err.Error()
+		} else {
+			fmt.Println("Data length", len(rows))
+			page.Select.Rows = rows
+			page.Select.Names = names
+		}
+	case "custom":
+
+	}
 	tmpl.Execute(w, &page)
 	return -1, nil
 
@@ -82,6 +88,13 @@ func validSection(section string) bool {
 	}
 	return false
 }
+func getQuery(r *http.Request, tableName string, limit int) string {
+	queries, exist := r.URL.Query()["query"]
+	if !exist || queries[0] == "" {
+		return fmt.Sprintf("select * from %s limit %v", tableName, limit)
+	}
+	return queries[0]
+}
 
 type tablePage struct {
 	Showing   string
@@ -91,6 +104,9 @@ type tablePage struct {
 	// Add       *dbms.TableInfo
 }
 type selectSection struct {
-	Rows  [][]interface{}
-	Names []string
+	Rows   [][]interface{}
+	Names  []string
+	Query  string
+	Error  bool
+	ErrMsg string
 }
