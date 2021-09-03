@@ -76,25 +76,22 @@
         <form action="/insertrow" class="table" method="GET">
             <input type="hidden" name="table" value="{{.TableName}}">
             <table>
-                {{range $i,$col := .InsertRow.Types}}
+                {{range $k,$v := .InsertRow.Inputs}}
                     <tr>
                         <th>
-                            {{$col.Name}}
+                            {{$k}}
                         </th>
-                        {{if eq $col.DatabaseTypeName "VARCHAR"}}
-                            <td><input type="text" name="{{$col.Name}}"></td>
-                        {{else if eq $col.DatabaseTypeName "INT4"}}
-                            <td><input type="number" name="{{$col.Name}}"></td>
-                        {{else if eq $col.DatabaseTypeName "INT8"}}
-                            <td><input type="number" name="{{$col.Name}}"></td>
-                        {{else if eq $col.DatabaseTypeName "BOOL"}}
-                            <td><input type="checkbox" name="{{$col.Name}}" value="true"></td>
-                        {{else}}
-                            <td><input type="text" name="{{$col.Name}}"></td>
-                        {{end}}
+                        <td>
+                            {{if eq $v "checkbox"}}
+                                <input type="checkbox" name="{{$k}}" value="true">
+                            {{else}}
+                                <input type="{{$v}}" name="{{$k}}">
+                            {{end}}
+                        </td>
                     </tr>
                 {{end}}
             </table>
+            <input type="checkbox" name="includebools" >Include not set booleans</input>
             <input type="submit" value="Insert">
         </form>
     {{end}}

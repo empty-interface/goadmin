@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strings"
 
 	"github.com/empty-interface/goadmin/dbms"
 	"github.com/empty-interface/goadmin/session"
@@ -62,9 +63,41 @@ func insertRow(page *tablePage, currentSession *session.Session, name string) er
 	if err != nil {
 		return err
 	}
-	page.InsertRow = tableInfo
+
+	inputs := parseColumnTypes(tableInfo)
+	page.InsertRow = &insertRowSection{
+		Inputs: inputs,
+	}
 	return nil
 }
+
+var inputTypes = map[string]string{
+	"VARCHAR": "text",
+	"INT":     "number",
+	"BOOL":    "checkbox",
+}
+
+func parseColumnTypes(cols *dbms.TableInfo) map[string]string {
+	columns := map[string]string{}
+	for i := range cols.Types {
+		name := cols.Types[i].Name()
+		_type := cols.Types[i].DatabaseTypeName()
+		inputType := "text"
+		for k, v := range inputTypes {
+			if strings.HasPrefix(_type, k) {
+				inputType = v
+				break
+			}
+		}
+		columns[name] = inputType
+	}
+	return columns
+}
+
+type insertRowSection struct {
+	Inputs map[string]string
+}
+
 func showSelect(currentSession *session.Session, name string, limit int) ([][]interface{}, []string, error) {
 	return currentSession.Conn.GetTableRows(name, limit)
 }
@@ -108,7 +141,7 @@ func getQuery(r *http.Request, tableName string, limit int) string {
 }
 
 type tablePage struct {
-	InsertRow *dbms.TableInfo
+	InsertRow *insertRowSection
 	Showing   string
 	TableName string
 	Structure *dbms.TableInfo

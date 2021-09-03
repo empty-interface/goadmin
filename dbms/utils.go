@@ -26,18 +26,19 @@ func wrapStrings(s *[]string) {
 		wrapString(&(*s)[i])
 	}
 }
-func (conn *GormConnection) InsertRow(table string, columns []string, values []interface{}) error {
-	wrapStrings(&columns)
-	wrapString(&table)
-	cols := strings.Join(columns, ",")
-	_vals := make([]string, len(values))
-	for i := range values {
-		_vals[i] = "?"
+func (conn *GormConnection) InsertRow(table string, row map[string]string) error {
+	_vals, _cols, values := []string{}, []string{}, []interface{}{}
+	for k, v := range row {
+		wrapString(&k)
+		_cols = append(_cols, k)
+		_vals = append(_vals, "?")
+		values = append(values, v)
 	}
+	cols := strings.Join(_cols, ",")
 	vals := strings.Join(_vals, ",")
 	query := fmt.Sprintf(`insert into %s (%s) values (%s)`, table, cols, vals)
-	conn.Exec(query, values...)
-	return conn.Error
+	err := conn.Exec(query, values...).Error
+	return err
 }
 func (conn *GormConnection) GetTableColumns(name string) ([]string, error) {
 	query := fmt.Sprintf(`select * from %s Limit 1`, name)
