@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"time"
 
 	"github.com/empty-interface/goadmin/dbms"
 	"github.com/empty-interface/goadmin/session"
@@ -14,19 +13,25 @@ import (
 func HandleDatabase(w http.ResponseWriter, r *http.Request, currentSession *session.Session) (int, error) {
 	// we get session
 	tmpl := template.Must(template.ParseFiles("html/database.html"))
-	tables := currentSession.Conn.GetTables()
+	schemas := currentSession.Conn.GetDBSchemas()
+	schema := getParam(r, "schema", "public")
+	tables := currentSession.Conn.GetSchemaTables(schema)
 	page := databasePage{
 		Title:                 fmt.Sprintf("GoAdmin - %s", currentSession.DBname),
-		DisconnectPath:        fmt.Sprintf("%s?a=%v", DisconnectPath, time.Now().UnixMilli()),
+		DisconnectPath:        DisconnectPath,
 		Tables:                tables,
-		Driver:                currentSession.Driver,
-		DBname:                currentSession.DBname,
-		Username:              currentSession.Username,
-		Password:              currentSession.Password,
-		Uuid:                  currentSession.Uuid,
 		SaveConnectionLocally: currentSession.SavedLocally,
 		ItemName:              session.GetGlobalSessionManager().ItemName,
-		Junk:                  time.Now().UnixMilli(),
+		Schemas:               schemas,
+		CurrentSchema:         schema,
+
+		Driver:   currentSession.Driver,
+		DBname:   currentSession.DBname,
+		Username: currentSession.Username,
+		Password: currentSession.Password,
+		Uuid:     currentSession.Uuid,
+		Host:     currentSession.Host,
+		Port:     currentSession.Port,
 	}
 	buffer := bytes.NewBufferString("")
 	err := tmpl.Execute(buffer, page)
@@ -35,6 +40,13 @@ func HandleDatabase(w http.ResponseWriter, r *http.Request, currentSession *sess
 	}
 	buffer.WriteTo(w)
 	return -1, nil
+}
+func getParam(r *http.Request, name string, default_ string) string {
+	params, exist := r.URL.Query()[name]
+	if !exist || len(params) < 0 {
+		return default_
+	}
+	return params[0]
 }
 func getCurrentSession(r *http.Request) *session.Session {
 	sessionManager := session.GetGlobalSessionManager()
@@ -49,12 +61,16 @@ type databasePage struct {
 	Title                 string
 	DisconnectPath        string
 	Tables                []dbms.Table
-	Driver                string
-	Username              string
-	DBname                string
-	Password              string
-	Uuid                  string
 	SaveConnectionLocally bool
 	ItemName              string
-	Junk                  int64
+	Schemas               []dbms.Schema
+	CurrentSchema         string
+
+	Driver   string
+	Username string
+	DBname   string
+	Password string
+	Uuid     string
+	Host     string
+	Port     string
 }

@@ -31,7 +31,7 @@ func HandleInsert(w http.ResponseWriter, r *http.Request, currentSession *sessio
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
-	http.Redirect(w, r, fmt.Sprintf("table?name=%s&section=select", tableName), http.StatusPermanentRedirect)
+	http.Redirect(w, r, fmt.Sprintf("table?name=%s&section=select", tableName), http.StatusTemporaryRedirect)
 	return -1, nil
 }
 func parseTableName(r *http.Request) (string, error) {

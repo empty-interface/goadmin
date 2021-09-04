@@ -22,6 +22,8 @@ type Session struct {
 	Username     string
 	Password     string
 	DBname       string
+	Port         string
+	Host         string
 	createdAt    time.Time
 	Conn         *dbms.GormConnection
 	SavedLocally bool
@@ -33,6 +35,8 @@ type infileSession struct {
 	Password  string `json:"password"`
 	DBname    string `json:"dbname"`
 	CreatedAt int64  `json:"createdAt"`
+	Port      string `json:"port"`
+	Host      string `json:"host"`
 }
 
 func sessionToInfileSession(sess *Session) infileSession {
@@ -42,6 +46,8 @@ func sessionToInfileSession(sess *Session) infileSession {
 		Username:  sess.Username,
 		Password:  sess.Password,
 		DBname:    sess.DBname,
+		Host:      sess.Host,
+		Port:      sess.Port,
 		CreatedAt: sess.createdAt.UnixMilli(),
 	}
 }
@@ -52,6 +58,8 @@ func infileSessiontoSession(sess *infileSession) *Session {
 		Driver:    sess.Driver,
 		Username:  sess.Username,
 		Password:  sess.Password,
+		Host:      sess.Host,
+		Port:      sess.Port,
 		DBname:    sess.DBname,
 		createdAt: time.UnixMilli(sess.CreatedAt),
 		Conn:      nil,
@@ -70,7 +78,7 @@ func (sess *Session) ExpiresAt() time.Time {
 func (sess *Session) Refresh() {
 	sess.createdAt = time.Now()
 }
-func NewSession(driver, username, password, dbname string, saved bool) (*Session, error) {
+func NewSession(driver, username, password, dbname, host, port string, saved bool) (*Session, error) {
 	_uuid := ""
 	id, err := uuid.NewRandom()
 	if err != nil {
@@ -78,8 +86,13 @@ func NewSession(driver, username, password, dbname string, saved bool) (*Session
 	}
 	_uuid = id.String()
 	return &Session{
-		Uuid:   _uuid,
-		Driver: driver, Username: username, Password: password, DBname: dbname,
+		Uuid:         _uuid,
+		Driver:       driver,
+		Username:     username,
+		Password:     password,
+		DBname:       dbname,
+		Host:         host,
+		Port:         port,
 		createdAt:    time.Now(),
 		SavedLocally: saved,
 	}, nil

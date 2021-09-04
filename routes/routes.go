@@ -47,7 +47,7 @@ func HandleConnect(connect func(*session.Session) error) HandleError {
 		if form["rememberme"] == "on" {
 			saved = true
 		}
-		sess, err := session.NewSession(form["driver"], form["username"], form["password"], form["dbname"], saved)
+		sess, err := session.NewSession(form["driver"], form["username"], form["password"], form["dbname"], form["host"], form["port"], saved)
 		if err != nil {
 			return http.StatusInternalServerError, err
 		}
@@ -56,7 +56,7 @@ func HandleConnect(connect func(*session.Session) error) HandleError {
 			return http.StatusBadRequest, err
 		}
 		addOrRefreshLoginSession(w, r, sess)
-		http.Redirect(w, r, HomePath, http.StatusPermanentRedirect)
+		http.Redirect(w, r, HomePath, http.StatusTemporaryRedirect)
 		return -1, nil
 	})
 }
@@ -128,6 +128,8 @@ func parseConnectForm(map_ url.Values) (map[string]string, error) {
 		"dbname":   "Database name",
 		"password": "Password",
 		"username": "Username",
+		"host":     "Host",
+		"port":     "Port",
 	}
 	ret := make(map[string]string)
 	for name, field := range expected {

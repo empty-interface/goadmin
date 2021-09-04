@@ -6,9 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.Title}}</title>
     <style>
-        /* .tables{
-            
-        } */
+        .no-tables{
+            color: red;
+        }
     </style>
 </head>
 <body>
@@ -16,12 +16,28 @@
         <h1>Database</h1>
         <a href={{.DisconnectPath}}>disconnect</a>
     </header>
-    
-    <ul class="tables">
-        {{range  .Tables}}
-            <li class="table"><a alt="" href={{printf "/table?name=%s&a=%v" .Name $.Junk}} >{{.Name}}</a></li>
-        {{end}}
-    </ul>
+    <form action="/" name="schemaForm" method="GET">
+        <select name="schema" onchange="schemaChanged()">
+            {{range .Schemas}}
+            
+                <option value="{{.SchemaName}}"
+                    {{if eq $.CurrentSchema .SchemaName}}
+                        selected
+                    {{end}}
+                >{{.SchemaName}}</option>
+            {{end}}
+        </select>
+    </form>
+    {{if .Tables}}
+        <h5>-Showing tables for '{{.CurrentSchema}}' schema:</h5>
+        <ul class="tables">
+            {{range  .Tables}}
+                <li class="table"><a alt="" href="/table?name={{.Name}}" >{{.Name}}</a></li>
+            {{end}}
+        </ul>
+    {{else}}
+        <div class="no-tables">-Schema '{{.CurrentSchema}}' has no tables</div>
+    {{end}}
     <script type="application/javascript">
         {{if .SaveConnectionLocally}}
             const itemName = "{{.ItemName}}";
@@ -50,22 +66,29 @@
             }else{
                 connections = new Map()
             }
-            const key = {{.Driver}} + " " + {{.Username}}+ " " + {{.DBname}}
             const driver = {{.Driver}}
             const username = {{.Username}}
             const dbname = {{.DBname}}
             const password = {{.Password}}
+            const port = {{.Port}}
+            const host = {{.Host}}
+            const key =`User: ${username}, DB: ${dbname}, Host: ${host}, Port: ${port} (${driver})`
             const newItem = {
                 driver:driver,
                 username:username,
                 dbname:dbname,
                 password:password,
+                host:host,
+                port:port,
             };
             connections.set(key,newItem)
             let item = JSON.stringify(connections,replacer)
             localStorage.setItem(itemName,item)
             // console.log("Item",localStorage.getItem("connections"))
         {{end}}
+        function schemaChanged(){
+            document.schemaForm.submit()
+        }
     </script>
 </body>
 </html>

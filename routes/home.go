@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"net/http"
 
+	"github.com/empty-interface/goadmin/dbms"
 	"github.com/empty-interface/goadmin/session"
 )
 
@@ -15,12 +16,10 @@ func HandleHome(w http.ResponseWriter, r *http.Request) (int, error) {
 		return http.StatusInternalServerError, err
 	}
 	sessionManager := session.GetGlobalSessionManager()
+	supportedDrivers := dbms.GetSupportedDrivers()
 	page := homePage{
-		Title: "GoAdminer v1",
-		Select: map[string]string{
-			"postgres": "PostgreSQL",
-			// "mysql":    "MySQL",
-		},
+		Title:    "GoAdminer v1",
+		Select:   supportedDrivers,
 		ItemName: sessionManager.ItemName,
 		Action:   ConnectPath,
 	}

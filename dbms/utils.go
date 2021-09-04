@@ -15,7 +15,6 @@ type Table struct {
 }
 
 func (*Table) TableName() string {
-
 	return "information_schema.tables"
 }
 func wrapString(s *string) {
@@ -52,7 +51,26 @@ func (conn *GormConnection) GetTableColumns(name string) ([]string, error) {
 	}
 	return cols, nil
 }
-func (conn *GormConnection) GetTables() []Table {
+
+type Schema struct {
+	CatalogName                string `gorm:"column:catalog_name"`
+	SchemaName                 string `gorm:"column:schema_name"`
+	SchemaOwner                string `gorm:"column:schema_owner"`
+	DefaultCharacterSetCatalog string `gorm:"column:default_character_set_catalog"`
+	DefaultCharacterSetSchema  string `gorm:"column:default_character_set_schema"`
+	DefaultCharacterSetName    string `gorm:"column:default_character_set_name"`
+	SqlPath                    string `gorm:"column:sql_path"`
+}
+
+func (*Schema) TableName() string {
+	return "information_schema.schemata"
+}
+func (conn *GormConnection) GetDBSchemas() []Schema {
+	var schemas []Schema
+	conn.Find(&schemas)
+	return schemas
+}
+func (conn *GormConnection) GetSchemaTables(schema string) []Table {
 	// query := `select * from information_schema.tables where table_schema = 'public'`
 	// tables := make([]Table, 0)
 	// rows, err := conn.Raw(query).Rows()
@@ -61,7 +79,7 @@ func (conn *GormConnection) GetTables() []Table {
 	// }
 	// rows.Scan()
 	tables := []Table{}
-	conn.Where("table_schema=?", "public").Find(&tables)
+	conn.Where("table_schema=?", schema).Find(&tables)
 	fmt.Println("Found", len(tables), "tables")
 	return tables
 }
@@ -80,17 +98,21 @@ func (conn *GormConnection) GetTableRows(query string, limit int) ([][]interface
 	if err != nil {
 		return nil, nil, err
 	}
+	result := scanRows(rows, len(cols))
+	return result, cols, nil
+}
+func scanRows(rows *sql.Rows, len_ int) [][]interface{} {
 	var result [][]interface{}
-	temp := make([]interface{}, len(cols))
+	temp := make([]interface{}, len_)
 	for rows.Next() {
-		row := make([]interface{}, len(cols))
+		row := make([]interface{}, len_)
 		for i := range temp {
 			temp[i] = &row[i]
 		}
 		rows.Scan(temp...)
 		result = append(result, row)
 	}
-	return result, cols, nil
+	return result
 }
 func (conn *GormConnection) GetTableInfo(name string) (*TableInfo, error) {
 	query := fmt.Sprintf(`select * from %s`, name)

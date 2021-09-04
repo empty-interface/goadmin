@@ -28,19 +28,32 @@ func newGormConnection(driver driver, opts ...gorm.Option) (*GormConnection, err
 	}, nil
 }
 
-func NewClient(driver string, config config) (*GormConnection, error) {
-	init, ok := supportedDrivers[driver]
+func NewClient(driverName string, config config) (*GormConnection, error) {
+	driver, ok := supportedDrivers[driverName]
 	if !ok {
 		return nil, driverNotSupported
 	}
 	// opt := {}
-	return newGormConnection(init(config))
+	return newGormConnection(driver.init(config))
 }
 
 type driverInitializer = func(config) driver
+type supportedDriver struct {
+	Name string
+	init driverInitializer
+}
 
-var supportedDrivers = map[string]driverInitializer{
-	"postgres": newPostgresDriver,
+var supportedDrivers = map[string]supportedDriver{
+	"postgres": {"PostgreSQL", newPostgresDriver},
+	"mysql":    {"MySQL", newMySQLDriver},
+}
+
+func GetSupportedDrivers() map[string]string {
+	drivers := map[string]string{}
+	for k, v := range supportedDrivers {
+		drivers[k] = v.Name
+	}
+	return drivers
 }
 
 var (
@@ -55,12 +68,12 @@ type config struct {
 	Host, Username, DBName, Port, Password string
 }
 
-func NewConfig(username, password, dbname string) config {
+func NewConfig(username, password, dbname, host, port string) config {
 	return config{
-		Host:     "localhost",
+		Host:     host,
 		Username: username,
 		DBName:   dbname,
-		Port:     "5432",
+		Port:     port,
 		Password: password,
 	}
 }

@@ -9,6 +9,16 @@
         .hidden{
             display: none;
         }
+        .past-connection{
+            text-decoration: underline;
+            cursor: pointer;
+            color: blue;
+        }
+        .past-connection:hover{
+            text-decoration: underline;
+            cursor: pointer;
+            color: black;
+        }
     </style>
 </head>
 <body>
@@ -20,15 +30,27 @@
                 <option value={{$key}}>{{$value}}</option>
             {{end}}
         </select>
-        <input type="text"     placeholder="username" name="username" id="username">
+        <br>
+        <input type="text" placeholder="host" name="host" id="host">
+        <br>
+        <input type="text" placeholder="port" name="port" id="port">
+        <br>
+        <input type="text" placeholder="username" name="username" id="username">
+        <br>
         <input type="password" placeholder="password" name="password" id="password">
+        <br>
         <input type="dbname"   placeholder="dbname"      name="dbname"id="dbname">
+        <br>
         <input type="checkbox"  name="rememberme">remember me</input>
+        <br>
         <input type="submit" value="Connect"/>
+        <br>
     </form>
     <div id ="connections" class="hidden">
         <button id="clear" onclick='clear()'>Clear</button>
+        <br>
         Past connections:
+        <br>
     </div>
     <script >
         const itemName = "{{.ItemName}}";
@@ -57,15 +79,18 @@
                     connections.forEach(function(value,key,_){
                         const li = document.createElement("li")
                         const div = document.createElement("div")
-                        div.href = "/connect"
+                        // div.href = "/connect"
                         div.addEventListener("click",function(event){
                             document.getElementById("driver").value = value.driver
                             document.getElementById("username").value = value.username
                             document.getElementById("password").value = value.password
                             document.getElementById("dbname").value = value.dbname
+                            document.getElementById("host").value = value.host
+                            document.getElementById("port").value = value.port
                             document.connectForm.submit();
                         })
                         div.innerText = key
+                        div.classList.add("past-connection")
                         li.appendChild(div)
                         ul.appendChild(li)
                     }) 

@@ -19,5 +19,5 @@ func HandleDisconnect(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Session to delete: ", sess)
 	handleExpiredSession(w, r, sess)
 
-	http.Redirect(w, r, HomePath, http.StatusPermanentRedirect)
+	http.Redirect(w, r, HomePath, http.StatusTemporaryRedirect)
 }

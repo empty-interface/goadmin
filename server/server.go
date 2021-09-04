@@ -39,7 +39,7 @@ func (srv *Server) setupRoutes() {
 
 func (srv *Server) Connect(sess *session.Session) error {
 	driver := strings.ToLower(sess.Driver)
-	cfg := dbms.NewConfig(sess.Username, sess.Password, sess.DBname)
+	cfg := dbms.NewConfig(sess.Username, sess.Password, sess.DBname, sess.Host, sess.Port)
 	fmt.Printf("Connected to db using driver: %s\n", driver)
 	conn, err := dbms.NewClient(sess.Driver, cfg)
 	if err != nil {
