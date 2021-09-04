@@ -15,7 +15,7 @@ func newPostgresDriver(cfg config) driver {
 	return &postgresDriver{cfg}
 }
 
-func (p *postgresDriver) open(dsn string) gorm.Dialector {
+func (*postgresDriver) open(dsn string) gorm.Dialector {
 	return postgres.Open(dsn)
 }
 func (p *postgresDriver) dsn() string {

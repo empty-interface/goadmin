@@ -15,7 +15,7 @@ func newMySQLDriver(cfg config) driver {
 	return &mysqlDriver{cfg}
 }
 
-func (p *mysqlDriver) open(dsn string) gorm.Dialector {
+func (*mysqlDriver) open(dsn string) gorm.Dialector {
 	return mysql.Open(dsn)
 }
 func (p *mysqlDriver) dsn() string {
